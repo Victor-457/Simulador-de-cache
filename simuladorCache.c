@@ -24,6 +24,7 @@ typedef struct memoria Memoria;
 
 struct memoria{
 	int tamanho,
+		nivel,
 		cont;
 	Fila* dados_memoria;
 };
@@ -38,42 +39,155 @@ struct fila{
 	Lista* fim;
 };
 
-void preencheMemoriaPrincipal(Memoria* mem_prin);
-void recebeSequenciaTeste(void);
-void usaFifo(void);
-void usaLru(void);
-Memoria* criaMemoria(int tamMemoria);
+static Memoria* cacheL1;
+static Memoria* cacheL2;
+static Memoria* cacheL3;
+static Memoria* principal;
+
+void preencheMemoriaPrincipal(int);
+/* FALTA */void recebeSequenciaTeste(void);
+/* FALTA */void usaFifo(void);
+/* FALTA */void usaLru(void);
+Memoria* criaMemoria(int,int);
 void insereDadoMemoria(Memoria* mem,int dado);
-void mostraMemoria(Memoria* mem);
+/* FALTA */void mostraMemoria(Memoria* mem);
 int trocaNivelDadoNaMemoria(Memoria* mem1, Memoria* mem2,int dado);
 int verificaDadoNaMemoria(Memoria* mem, int dado);
 Fila* criaFila(void);
-void insereFila(Fila* f,int dado);
-void liberaFila(Fila* f);
-int filaVazia(Fila* f);
-int retiraFila(Fila* f);
+void insereFila(Fila*,int);
+void liberaFila(Fila*);
+int filaVazia(Fila*);
+int retiraFila(Fila*);
 
 int main(int argc, char **argv)
 {
-	
+	cacheL1 = criaMemoria(2,1);
+	cacheL2 = criaMemoria(4,2);
+	cacheL3 = criaMemoria(8,3);
+	principal = criaMemoria(16,4);
 	return 0;
 }
-
-Memoria* criaMemoria(int tamMemoria){
+void preencheMemoriaPrincipal(int n){
+	int i;
+	for(i =0; i < n*8; i++)
+		insereDadoMemoria(principal,i);
+}
+Memoria* criaMemoria(int tamMemoria,int nivel){
 	Memoria* mem = (Memoria*)malloc(sizeof(Memoria));
 	
 	mem->dados_memoria = criaFila();
 	mem->tamanho = tamMemoria;
+	mem->nivel=nivel;
 	
 	return mem;
 }
+
+int verificaDadoNaMemoria(Memoria* mem,int dado){
+	Fila* f = (Fila*)malloc(sizeof(Fila));
+	int i;
+	f = mem->dados_memoria;
+	
+	for(i = 0; i < mem->cont; i++){
+		if(f->ini->dado == dado)
+			return 1;
+		else
+		{
+			Lista* temp = f->ini->prox;
+			free(f);
+			f->ini = temp;
+		}
+	}	
+	
+	return -1;
+}
+	
+void insereDadoMemoria(Memoria* mem, int dado){
+	if(mem->cont+1 <= mem->tamanho){
+		insereFila(mem->dados_memoria,dado);
+		mem->cont++;
+	}
+	else{
+		int valido;
+		if(mem->nivel == 1){
+			inicio:
+			valido = trocaNivelDadoNaMemoria(cacheL2,cacheL1,dado);
+			
+			if(valido != 1){
+				valido = trocaNivelDadoNaMemoria(cacheL3,cacheL2,dado);
+				if(valido != 1){
+					valido = trocaNivelDadoNaMemoria(principal,cacheL3,dado);
+					if(valido != 1){
+						int temp1,temp2,temp3,temp4;
+						temp1 = verificaDadoNaMemoria(cacheL1,dado);
+						temp2 = verificaDadoNaMemoria(cacheL2,dado);
+						temp3 = verificaDadoNaMemoria(cacheL3,dado);
+						temp4 = verificaDadoNaMemoria(principal,dado);
+						if(temp1 != 1 && temp2 != 1 && temp3 != 1 && temp4 != 1){
+							printf("Dado da sequencia de teste não foi previamente alocado na memória principal");	
+						}
+						else
+							goto inicio;
+					}
+				}
+				else
+					goto inicio;
+			}
+		}
+		if(mem->nivel == 2){
+			inicio1:
+			valido = trocaNivelDadoNaMemoria(cacheL3,cacheL2,dado);
+				if(valido != 1){
+					valido = trocaNivelDadoNaMemoria(principal,cacheL3,dado);
+					if(valido != 1){
+						int temp1,temp2,temp3,temp4;
+						temp1 = verificaDadoNaMemoria(cacheL1,dado);
+						temp2 = verificaDadoNaMemoria(cacheL2,dado);
+						temp3 = verificaDadoNaMemoria(cacheL3,dado);
+						temp4 = verificaDadoNaMemoria(principal,dado);
+						if(temp1 != 1 && temp2 != 1 && temp3 != 1 && temp4 != 1){
+							printf("Dado da sequencia de teste não foi previamente alocado na memória principal");	
+						}
+						else
+							goto inicio1;
+					}
+					else
+						goto inicio1;
+				}
+		}
+		if(mem->nivel == 3){
+			valido = trocaNivelDadoNaMemoria(principal,cacheL3,dado);
+			if(valido != 1){
+				int temp1,temp2,temp3,temp4;
+				temp1 = verificaDadoNaMemoria(cacheL1,dado);
+				temp2 = verificaDadoNaMemoria(cacheL2,dado);
+				temp3 = verificaDadoNaMemoria(cacheL3,dado);
+				temp4 = verificaDadoNaMemoria(principal,dado);
+				if(temp1 != 1 && temp2 != 1 && temp3 != 1 && temp4 != 1){
+					printf("Dado da sequencia de teste não foi previamente alocado na memória principal");	
+				}
+				else
+					goto inicio1;
+			}
+		}
+	}
+}		
+		
 	
 /*
  *	Na função de troca de nivel o dado na memoria, sempre vai verificar se o dado está na mem1 caso esteja vai passa-lo para mem2,
  * 	caso contrário retornará que o dado procurado não está em mem1.
 */
 int trocaNivelDadoNaMemoria(Memoria* mem1,Memoria* mem2, int dado){
-	return 0;
+	if(verificaDadoNaMemoria(mem1,dado) == 1){
+		retiraFila(mem1->dados_memoria);
+		insereFila(mem2->dados_memoria,dado);
+		return 1;
+	}
+	else if (verificaDadoNaMemoria(mem1,dado) == -1)
+		return -1;
+	else
+		return -1;
+
 }
 
 Fila* criaFila(void){
@@ -126,7 +240,6 @@ void liberaFila(Fila* f){
 		free(temp);
 		temp = temp2;
 	}
-	
 	free(f);
 }
 
