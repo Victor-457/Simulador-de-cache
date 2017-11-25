@@ -1,33 +1,9 @@
-/*
- * 	Os tamanhos das memórias cache l1,l2,L3 e principal serão definidos da seguinte forma: 
- * 	- L1 definida por usuário.
- * 	- L2 será 2 * o tamanho de L1
- * 	- L3 será 4 * o tamanho de L1
- * 	- A principal será 8 * o tamanho de L1
- * 
- * 	Os dados diponíveis para montagem da sequencia de teste serão definidos a partir do tamanho da memória principal,
- * 	de modo que, eles serão números inteiros de 0 até o tamanho da memória principal.
- * 
- * 	A sequencia de teste poderá ser dada pelo usuário ou gerada randomicamente. Sendo que quando gerada randomicamente
- * 	ela terá o tamanho igual ao da memória principal mais 10.
- * 	
- *	Utilizarei o conceito de fila para implementar a cache com algoritmo FIFO.
- *
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 typedef struct lista Lista;
 typedef struct fila Fila;
-typedef struct memoria Memoria;
-
-struct memoria{
-	int tamanho,
-		nivel,
-		cont;
-	Fila* dados_memoria;
-};
 
 struct lista{
 	int dado;
@@ -35,194 +11,72 @@ struct lista{
 };
 
 struct fila{
+	int tamanho,
+		cont;
 	Lista* ini;
 	Lista* fim;
 };
 
-static Memoria* cacheL1;
-static Memoria* cacheL2;
-static Memoria* cacheL3;
-static Memoria* principal;
+static Fila* cacheL1;
+static int memoriaPrincipal[16];
+static int hit = 0;
+static int miss = 0;
 
-void preencheMemoriaPrincipal(int);
-/* FALTA */void recebeSequenciaTeste(void);
-/* FALTA */void usaFifo(void);
-/* FALTA */void usaLru(void);
-Memoria* criaMemoria(int,int);
-void insereDadoMemoria(Memoria* mem,int dado);
-/* FALTA */void mostraMemoria(Memoria* mem);
-int trocaNivelDadoNaMemoria(Memoria* mem1, Memoria* mem2,int dado);
-int verificaDadoNaMemoria(Memoria* mem, int dado);
-Fila* criaFila(void);
-void insereFila(Fila*,int);
-void liberaFila(Fila*);
-int filaVazia(Fila*);
-int retiraFila(Fila*);
+Fila* criaFila(int tamMemoria){
 
-int main(int argc, char **argv)
-{
-	cacheL1 = criaMemoria(2,1);
-	cacheL2 = criaMemoria(4,2);
-	cacheL3 = criaMemoria(8,3);
-	principal = criaMemoria(16,4);
-	return 0;
-}
-void preencheMemoriaPrincipal(int n){
-	int i;
-	for(i =0; i < n*8; i++)
-		insereDadoMemoria(principal,i);
-}
-Memoria* criaMemoria(int tamMemoria,int nivel){
-	Memoria* mem = (Memoria*)malloc(sizeof(Memoria));
-	
-	mem->dados_memoria = criaFila();
-	mem->tamanho = tamMemoria;
-	mem->nivel=nivel;
-	
-	return mem;
-}
-
-int verificaDadoNaMemoria(Memoria* mem,int dado){
 	Fila* f = (Fila*)malloc(sizeof(Fila));
-	int i;
-	f = mem->dados_memoria;
-	
-	for(i = 0; i < mem->cont; i++){
-		if(f->ini->dado == dado)
-			return 1;
-		else
-		{
-			Lista* temp = f->ini->prox;
-			free(f);
-			f->ini = temp;
-		}
-	}	
-	
-	return -1;
-}
-	
-void insereDadoMemoria(Memoria* mem, int dado){
-	if(mem->cont+1 <= mem->tamanho){
-		insereFila(mem->dados_memoria,dado);
-		mem->cont++;
-	}
-	else{
-		int valido;
-		if(mem->nivel == 1){
-			inicio:
-			valido = trocaNivelDadoNaMemoria(cacheL2,cacheL1,dado);
-			
-			if(valido != 1){
-				valido = trocaNivelDadoNaMemoria(cacheL3,cacheL2,dado);
-				if(valido != 1){
-					valido = trocaNivelDadoNaMemoria(principal,cacheL3,dado);
-					if(valido != 1){
-						int temp1,temp2,temp3,temp4;
-						temp1 = verificaDadoNaMemoria(cacheL1,dado);
-						temp2 = verificaDadoNaMemoria(cacheL2,dado);
-						temp3 = verificaDadoNaMemoria(cacheL3,dado);
-						temp4 = verificaDadoNaMemoria(principal,dado);
-						if(temp1 != 1 && temp2 != 1 && temp3 != 1 && temp4 != 1){
-							printf("Dado da sequencia de teste não foi previamente alocado na memória principal");	
-						}
-						else
-							goto inicio;
-					}
-				}
-				else
-					goto inicio;
-			}
-		}
-		if(mem->nivel == 2){
-			inicio1:
-			valido = trocaNivelDadoNaMemoria(cacheL3,cacheL2,dado);
-				if(valido != 1){
-					valido = trocaNivelDadoNaMemoria(principal,cacheL3,dado);
-					if(valido != 1){
-						int temp1,temp2,temp3,temp4;
-						temp1 = verificaDadoNaMemoria(cacheL1,dado);
-						temp2 = verificaDadoNaMemoria(cacheL2,dado);
-						temp3 = verificaDadoNaMemoria(cacheL3,dado);
-						temp4 = verificaDadoNaMemoria(principal,dado);
-						if(temp1 != 1 && temp2 != 1 && temp3 != 1 && temp4 != 1){
-							printf("Dado da sequencia de teste não foi previamente alocado na memória principal");	
-						}
-						else
-							goto inicio1;
-					}
-					else
-						goto inicio1;
-				}
-		}
-		if(mem->nivel == 3){
-			valido = trocaNivelDadoNaMemoria(principal,cacheL3,dado);
-			if(valido != 1){
-				int temp1,temp2,temp3,temp4;
-				temp1 = verificaDadoNaMemoria(cacheL1,dado);
-				temp2 = verificaDadoNaMemoria(cacheL2,dado);
-				temp3 = verificaDadoNaMemoria(cacheL3,dado);
-				temp4 = verificaDadoNaMemoria(principal,dado);
-				if(temp1 != 1 && temp2 != 1 && temp3 != 1 && temp4 != 1){
-					printf("Dado da sequencia de teste não foi previamente alocado na memória principal");	
-				}
-				else
-					goto inicio1;
-			}
-		}
-	}
-}		
-		
-	
-/*
- *	Na função de troca de nivel o dado na memoria, sempre vai verificar se o dado está na mem1 caso esteja vai passa-lo para mem2,
- * 	caso contrário retornará que o dado procurado não está em mem1.
-*/
-int trocaNivelDadoNaMemoria(Memoria* mem1,Memoria* mem2, int dado){
-	if(verificaDadoNaMemoria(mem1,dado) == 1){
-		retiraFila(mem1->dados_memoria);
-		insereFila(mem2->dados_memoria,dado);
-		return 1;
-	}
-	else if (verificaDadoNaMemoria(mem1,dado) == -1)
-		return -1;
-	else
-		return -1;
 
-}
-
-Fila* criaFila(void){
-	
-	Fila* f = (Fila*)malloc(sizeof(Fila));
 	f->ini = f->fim = NULL;
-		
+	f->tamanho = tamMemoria;
+	f->cont = 0;
+	
 	return f;
 }
-void insereFila(Fila* f, int info){
+
+int insereFila(Fila* f, int info){
+
+	int temp;
 	Lista* lista = (Lista*)malloc(sizeof(Lista));
 	
-	lista->dado = info;
-	lista->prox = NULL;
+	lista->dado = info;					// armazena a informação
+	lista->prox = NULL; 				// ultimo nó
 	
-	if( f->fim != NULL)
-		f->fim->prox = lista;
-	else
-		f->ini = f->fim = lista;
-			
+	if(f->cont <= f->tamanho)
+	{
+		if( f->fim != NULL)				// verifica se a lista não estava vazia
+			f->fim->prox = lista;
+	
+		else							// estava vazia
+			f->ini = f->fim = lista;
+		
+		f->cont ++;
+
+		return -1;
+	}
+
+	else{ 		
+		
+		temp = retiraFila(f);			// Troca o primeiro elemento da fila pelo que se deseja inserir
+
+		if( f->fim != NULL)				// verifica se a lista não estava vazia
+			f->fim->prox = lista;		
+	
+		return temp;					// Retorna o elemento que foi substituido
+
+	}
+
 }
-int filaVazia(Fila* f){
-	if( f->ini == NULL)
-		return 1;
-	return 0;
-}
+
 int retiraFila(Fila* f){
-	Lista* lista;
+	
 	int temp;
 	
-	if( filaVazia(f))
-		printf("erro");
-	
+	Lista* lista = (Lista*)malloc(sizeof(Lista));
+
 	lista = f->ini;
+
 	temp = lista->dado;
+	
 	f->ini = lista->prox;
 	
 	if( f->ini == NULL)
@@ -232,26 +86,177 @@ int retiraFila(Fila* f){
 	
 	return temp;
 }
+
 void liberaFila(Fila* f){
-	Lista* temp = f->ini;
+
+	Lista* temp =(Lista*)malloc(sizeof(Lista));
+	
+	temp = f->ini;
 	
 	while(temp != NULL){
+	
 		Lista* temp2 = temp->prox;
 		free(temp);
+		
 		temp = temp2;
 	}
+	
 	free(f);
+}
+
+void criaMemoriaPrincipal(){
+   	// 	printf("Memoria principal : \n");
+   
+   	for(int i = 0; i < 16; i++)
+   	{ 
+		memoriaPrincipal[i] = i +1;
+	//	printf("[%d] ", principal[i]);
+   	} 	
+   	//printf("\n\n");
+}
+
+void geraSequenciaTeste(int seq[], int tam){
+	
+   	time_t t;   
+ 	srand((unsigned) time(&t));
+ 	//printf("Sequencia teste : \n");
+
+   	for(int i = 0; i < tam; i++)
+   	{ 
+		seq[i] = 1 + rand() % 16;
+	  //  printf("[%d] ", seq[i]);
+   	}
+   	//printf("\n\n");
+}
+
+void insereMemoria(int dado){
+
+	for(int i = 0; i < 16; i++)
+   	{
+   		if(memoriaPrincipal[i] == 0){
+	
+			memoriaPrincipal[i] = dado;
+			break;
+   		}
+   	}
+}
+
+void fifo(int seqTeste[], int tam){
+
+	int temporaria;
+
+	for(int i = 0; i<tam; i++)
+	{
+		if(!hiti(cacheL1,seqTeste[i])){
+
+			temporaria = insereFila(cacheL1,seqTeste[i]);		// Adiciona o elemento na cache
+
+			if(temporaria != -1){
+				insereMemoria(temporaria);						// Adiciona o elemento substituido na cache na memoria principal
+			}
+			
+			seqTeste[i] = 0;									// Remove o primeiro elemento da sequencia de teste
+			miss++;												// incrementa o contador de miss
+
+			for(int j =0; j<16; j++){
+				if(memoriaPrincipal[j] == seqTeste [i]){
+					memoriaPrincipal[j] = 0;
+					printf("Aqui\n");
+				}
+			}
+		}	
+		
+		else{
+
+			hit++;												// incrementa o contador de hit
+			seqTeste[i] = 0; 									// Remove o primeiro elemento da sequencia de teste
+		}
+	}
+}
+
+int hiti(Fila* f, int dado1){
+
+	Lista* temp =(Lista*)malloc(sizeof(Lista));
+	
+	temp = f->ini;
+	
+	while(temp != NULL){
+	
+		Lista* temp2 = temp->prox;
+		
+		if(temp->dado == dado1){
+			return 1;
+		}
+		
+		temp = temp2;
+	}
+
+	return 0;
+}
+
+
+void mostraMemoria(){
+	
+	printf("Memoria principal : \n");
+
+	for(int i=0; i<16; i++)
+	 	printf("[%d] ", memoriaPrincipal[i]);
+
+   	printf("\n\n");
+}
+
+void mostraSeqTeste(int seq[], int tam){
+	
+	printf("Sequencia teste : \n");
+
+	for(int i=0; i<tam; i++)
+	 	printf("[%d] ", seq[i]);
+
+   	printf("\n\n");
 }
 
 
 
+int main(int argc, char **argv)
+{
 
+	int tam;
+	time_t t; 
+	srand((unsigned) time(&t));
 
+	printf("\nEntre com o tamanho da sequencia teste : ");
 
+	scanf("%d",&tam);
+  	printf("\n");
 
+	int seqTest[tam];
+	
+	cacheL1 = criaFila(4);
 
+	criaMemoriaPrincipal(); 	  
+ 	
+   	for(int i = 0; i < tam; i++)
+   		seqTest[i] = 1 + rand() % 16;
+   	
 
+	//geraSequenciaTeste(seqTest,tam);
 
+	fifo(seqTest,tam);
 
+	mostraMemoria();
 
+	
+   	for(int i = 0; i < tam; i++)
+   		printf("%d\n",seqTest[i]);
+   	
 
+	printf("\n\nQtd. de hit : %d \n", hit);
+
+	printf("Qtd. de miss : %d \n", miss);
+	
+	
+
+	liberaFila(cacheL1);
+
+	return 0;
+}
